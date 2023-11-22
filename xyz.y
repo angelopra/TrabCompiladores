@@ -104,7 +104,6 @@ statements      : statement statements
 statement       : VAR declarations
                 | assignment
                 | unary
-                | return
                 | functionCall SCOL
                 | if
                 | while
@@ -173,6 +172,7 @@ if              : IF expression body else
                 ;
 
 body            : LBRAC statements RBRAC
+                | LBRAC statements return RBRAC
                 ;
 
 else            : ELSE body
