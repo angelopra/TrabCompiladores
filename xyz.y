@@ -2,6 +2,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include<string.h>
+#include<ctype.h>
 
 #define MAXTOKEN 32
 #define MAXSYMS 256
@@ -27,18 +29,12 @@ int yydebug = 1;
 
 %}
 
-%union {
-        int i;
-        char *s; /* string */
-        float f;
-}
-
 /* Gramatica */
 
 %token  FN // fn
-        <s> ID // [a-zA-z][a-zA-z_]*
-        <i> INT // [0-9]+
-        <f> FLOAT // [0-9]*'.'[0-9]+
+        ID // [a-zA-z][a-zA-z_]*
+        INT // [-]?[0-9]+
+        FLOAT // [-]?[0-9]*\.[0-9]+
         LPAR // (
         RPAR // )
         COM // ,
@@ -69,10 +65,8 @@ int yydebug = 1;
         IF // if
         ELSE // else
         WHILE // while
-        MAIN // main()
+        MAIN // main
         // PARAMS // ID TYPE(,ID TYPE)* | ''
-
-%start program
 
 %%
 
@@ -188,7 +182,7 @@ else            : ELSE body
 while           : WHILE expression body
                 ;
 
-main            : FN MAIN fBody
+main            : FN MAIN LPAR RPAR fBody
                 ;
 
 %%
@@ -206,35 +200,12 @@ int yyerror(const char *msg, ...) {
         return 0;
 }
 
-static struct symtab *lookup(char *id) {
-        int i;
-        struct symtab *p;
-
-        for (i = 0; i < nsyms; i++) {
-                p = &symbols[i];
-                if (strncmp(p->id, id, MAXTOKEN) == 0)
-                        return p;
-        }
-
-        return NULL;
-}
-
 static void install(char *id, int val) {
         struct symtab *p;
 
         p = &symbols[nsyms++];
         strncpy(p->id, id, MAXTOKEN);
         p->val = val;
-}
-
-void assign(char *id, int val) {
-        struct symtab *p;
-
-        p = lookup(id);
-        if(p == NULL)
-                install(id, val);
-        else
-                p->val = val;
 }
 
 
@@ -255,10 +226,7 @@ int main (int argc, char **argv) {
 	}
 
         yyin = fp;
-        do {
-                yyparse();
-        } while(!feof(yyin));
-
+        yyparse();
 
         for (i = 0; i < nsyms; i++) {
                 p = &symbols[i];

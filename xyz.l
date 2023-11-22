@@ -1,82 +1,51 @@
+%option yylineno
+
 %{
 #include <stdlib.h>
 #include "xyz.tab.h"
-
-extern int yyerror (char const *msg, ...);
 %}
-MAIN        "main()"
-FN          "fn"
-VAR         "var"
-RETURN      "return"
-IF          "if"
-ELSE        "else"
-WHILE       "while"
-TYPE_INT    "i64"
-TYPE_FLOAT  "f64"
-ID          [a-zA-Z][a-zA-Z_]*
-FLOAT       [0-9]*"."[0-9]+
-INT         [0-9]+
-LPAR        "("
-RPAR        ")"
-COM         ","
-LBRAC       "{"
-RBRAC       "}"
-SCOL        ";"
-COL         ":"
-EQ          "="
-INCR        "++;"
-DECR        "--;"
-MINUS       "-"
-DIF         "!="
-EXCL        "!"
-PLUS        "+"
-ASTR        "*"
-SLSH        "/"
-PRCT        "%"
-GEQ         ">="
-LEQ         "<="
-GT          ">"
-LT          "<"
-AND         "&&"
-OR          "||"
-SPACE       [ \t\n]
-%option noyywrap nodefault yylineno
+
 %%
-{MAIN}          { return MAIN; }
-{FN}            { return FN; }
-{VAR}           { return VAR; }
-{RETURN}        { return RETURN; }
-{IF}            { return IF; }
-{ELSE}          { return ELSE; }
-{WHILE}         { return WHILE; }
-{TYPE_INT}      { return TYPE_INT; }
-{TYPE_FLOAT}    { return TYPE_FLOAT; }
-{ID}            { yylval.s = strdup(yytext); return ID; }
-{INT}           { yylval.i = atoi(yytext); return INT; }
-{FLOAT}         { yylval.f = atof(yytext); return FLOAT; }
-{LPAR}          { return LPAR; }
-{RPAR}          { return RPAR; }
-{COM}           { return COM; }
-{LBRAC}         { return LBRAC; }
-{RBRAC}         { return RBRAC; }
-{SCOL}          { return SCOL; }
-{COL}           { return COL; }
-{EQ}            { return EQ; }
-{INCR}          { return INCR; }
-{DECR}          { return DECR; }
-{MINUS}         { return MINUS; }
-{DIF}           { return DIF; }
-{EXCL}          { return EXCL; }
-{PLUS}          { return PLUS; }
-{ASTR}          { return ASTR; }
-{SLSH}          { return SLSH; }
-{PRCT}          { return PRCT; }
-{GEQ}           { return GEQ; }
-{LEQ}           { return LEQ; }
-{GT}            { return GT; }
-{LT}            { return LT; }
-{AND}           { return AND; }
-{OR}            { return OR; }
-{SPACE}         { ; }
-.               { yyerror("unknown token %s\n", yytext); }
+"main"              { return MAIN; }
+"fn"                { return FN; }
+"var"               { return VAR; }
+"return"            { return RETURN; }
+"if"                { return IF; }
+"else"              { return ELSE; }
+"while"             { return WHILE; }
+"i64"               { return TYPE_INT; }
+"f64"               { return TYPE_FLOAT; }
+[a-zA-Z][a-zA-Z_]*  { return ID; }
+[-]?[0-9]+          { return INT; }
+[-]?[0-9]*\.[0-9]+  { return FLOAT; }
+"("                 { return LPAR; }
+")"                 { return RPAR; }
+","                 { return COM; }
+"{"                 { return LBRAC; }
+"}"                 { return RBRAC; }
+";"                 { return SCOL; }
+":"                 { return COL; }
+"="                 { return EQ; }
+"++;"               { return INCR; }
+"--;"               { return DECR; }
+"-"                 { return MINUS; }
+"!="                { return DIF; }
+"!"                 { return EXCL; }
+"+"                 { return PLUS; }
+"*"                 { return ASTR; }
+"/"                 { return SLSH; }
+"%"                 { return PRCT; }
+">="                { return GEQ; }
+"<="                { return LEQ; }
+">"                 { return GT; }
+"<"                 { return LT; }
+"&&"                { return AND; }
+"||"                { return OR; }
+[ \t\n]             { ; }
+.                   { return *yytext; }
+
 %%
+
+int yywrap() {
+    return 1;
+}
