@@ -26,8 +26,8 @@
 ";"                 { return SCOL; }
 ":"                 { return COL; }
 "="                 { return EQ; }
-"++;"               { return INCR; }
-"--;"               { return DECR; }
+"++"                { return INCR; }
+"--"                { return DECR; }
 "-"                 { return MINUS; }
 "!="                { return DIF; }
 "!"                 { return EXCL; }

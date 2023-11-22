@@ -66,7 +66,6 @@ int yydebug = 1;
         ELSE // else
         WHILE // while
         MAIN // main
-        // PARAMS // ID TYPE(,ID TYPE)* | ''
 
 %%
 
@@ -104,8 +103,7 @@ statements      : statement statements
 
 statement       : VAR declarations
                 | assignment
-                | increment
-                | decrement
+                | unary
                 | return
                 | functionCall SCOL
                 | if
@@ -160,10 +158,12 @@ literal         : INT
 assignment      : ID EQ expression SCOL                 //{ assign($1, $3); }
                 ;
 
-increment       : ID INCR                               
+unary           : ID inOrDecrement SCOL
+                | inOrDecrement ID SCOL
                 ;
 
-decrement       : ID DECR
+inOrDecrement   : INCR
+                | DECR
                 ;
 
 return          : RETURN expression SCOL
