@@ -7,3 +7,5 @@ yacc --verbose --debug -d -o xyz.tab.c xyz.y
 cc -o xyz xyz.tab.c
 
 ./xyz program.xyz
+
+./xyz teste.xyz

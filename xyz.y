@@ -8,18 +8,33 @@
 #define MAXTOKEN 32
 #define MAXSYMS 256
 
-struct symtab {
+struct intSymtab {
+        char scope[MAXTOKEN];
         char id[MAXTOKEN];
         int val;
 };
 
-extern void assign(char *id, int val);
+struct floatSymtab {
+        char scope[MAXTOKEN];
+        char id[MAXTOKEN];
+        float val;
+};
+
+struct fnSymtab {
+        char id[MAXTOKEN];
+        char returnType;
+};
+
 // Stop warning about implicit declaration of yylex().
 extern int yylex();
 int yyerror(const char *msg, ...);
 
-static struct symtab symbols[MAXSYMS];
-static int nsyms = 0; /* number of symbols */
+static struct intSymtab intSymbols[MAXSYMS];
+static struct floatSymtab floatSymbols[MAXSYMS];
+static struct fnSymtab fnSymbols[MAXSYMS];
+static int nIntSymbols = 0;
+static int nFloatSymbols = 0;
+static int nFnSymbols = 0;
 
 /* 
   To debug, run 
@@ -154,7 +169,7 @@ literal         : INT
                 | FLOAT
                 ;
 
-assignment      : ID EQ expression SCOL                 //{ assign($1, $3); }
+assignment      : ID EQ expression SCOL                 { assign($1, $3); }
                 ;
 
 unary           : ID inOrDecrement SCOL
@@ -200,19 +215,53 @@ int yyerror(const char *msg, ...) {
         return 0;
 }
 
-static void install(char *id, int val) {
-        struct symtab *p;
+int declaredAt(char *id, char *scope) {
+        if (strcmp(scope, "global")) {
 
-        p = &symbols[nsyms++];
+        }
+}
+
+void verifyIfAlreadyDeclared(char *id, char *scope) {
+        if (declaredAt(id, scope) != -1) {
+                printf("\n\nERROR: %s was already declared.\n\n", id);
+                exit(1);
+        }
+}
+
+static void installInt(char *id, char *val, char *scope) {
+        verifyIfAlreadyDeclared(id, scope);
+
+        struct intSymtab *p;
+
+        p = &intSymbols[nIntSymbols++];
         strncpy(p->id, id, MAXTOKEN);
-        p->val = val;
+        p->val = atoi(val);
+}
+
+static void installFloat(char *id, char *val, char *scope) {
+        verifyIfAlreadyDeclared(id, scope);
+
+        struct floatSymtab *p;
+
+        p = &floatSymbols[nFloatSymbols++];
+        strncpy(p->id, id, MAXTOKEN);
+        p->val = atof(val);
+}
+
+static void installFn(char *id, char returnType) {
+        verifyIfAlreadyDeclared(id, "global");
+
+        struct fnSymtab *p;
+
+        p = &fnSymbols[nFnSymbols++];
+        strncpy(p->id, id, MAXTOKEN);
+        p->returnType = returnType;
 }
 
 
 int main (int argc, char **argv) {
         FILE *fp;
         int i;
-        struct symtab *p;
 
         if (argc <= 0) { 
                 fprintf(stderr, "usage: %s file\n", argv[0]);
@@ -228,9 +277,16 @@ int main (int argc, char **argv) {
         yyin = fp;
         yyparse();
 
-        for (i = 0; i < nsyms; i++) {
-                p = &symbols[i];
-                printf("%s=%d\n", p->id, p->val);
+        printf("\n\nINTEGERS\n");
+        printf("\tid\t|\tval\n");
+        for (i = 0; i < nIntSymbols; i++) {
+                printf("(%d)\t%s\t|\t%d\n", i, intSymbols[i].id, intSymbols[i].val);
+        }
+
+        printf("\n\nFLOATS\n");
+        printf("\tid\t|\tval\n");
+        for (i = 0; i < nFloatSymbols; i++) {
+                printf("(%d)\t%s\t|\t%.2f\n", i, floatSymbols[i].id, floatSymbols[i].val);
         }
 
         return 0;
