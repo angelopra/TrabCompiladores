@@ -69,11 +69,11 @@ int yydebug = 1;
 
 %%
 
-program         : functions main
-                | main
+program         : functions
                 ;
 
 functions       : function functions
+                | main
                 ;
 
 function        : FN ID LPAR parameters RPAR fBody
