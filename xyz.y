@@ -109,15 +109,18 @@ type            : TYPE_INT
                 | TYPE_FLOAT
                 ;
 
-fBody           : LBRAC statements return RBRAC
+fBody           : LBRAC bodyInside return RBRAC
+                ;
+
+bodyInside      : VAR declarations statements
+                | statements
                 ;
 
 statements      : statement statements
                 |
                 ;
 
-statement       : VAR declarations
-                | assignment
+statement       : assignment
                 | unary
                 | functionCall SCOL
                 | if
@@ -169,7 +172,7 @@ literal         : INT
                 | FLOAT
                 ;
 
-assignment      : ID EQ expression SCOL                 { assign($1, $3); }
+assignment      : ID EQ expression SCOL                 //{ assign($1, $3); }
                 ;
 
 unary           : ID inOrDecrement SCOL
@@ -186,8 +189,8 @@ return          : RETURN expression SCOL
 if              : IF expression body else
                 ;
 
-body            : LBRAC statements RBRAC
-                | LBRAC statements return RBRAC
+body            : LBRAC bodyInside RBRAC
+                | LBRAC bodyInside return RBRAC
                 ;
 
 else            : ELSE body
