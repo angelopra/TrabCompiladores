@@ -5,36 +5,27 @@
 #include<string.h>
 #include<ctype.h>
 
-#define MAXTOKEN 32
-#define MAXSYMS 256
+#define MAXTOKEN 64
+#define MAXSYMS 1024
+#define GLOBAL "global"
 
-struct intSymtab {
+struct symtab {
         char scope[MAXTOKEN];
         char id[MAXTOKEN];
-        int val;
-};
-
-struct floatSymtab {
-        char scope[MAXTOKEN];
-        char id[MAXTOKEN];
-        float val;
-};
-
-struct fnSymtab {
-        char id[MAXTOKEN];
-        char returnType;
+        char type;
 };
 
 // Stop warning about implicit declaration of yylex().
 extern int yylex();
-int yyerror(const char *msg, ...);
 
-static struct intSymtab intSymbols[MAXSYMS];
-static struct floatSymtab floatSymbols[MAXSYMS];
-static struct fnSymtab fnSymbols[MAXSYMS];
-static int nIntSymbols = 0;
-static int nFloatSymbols = 0;
-static int nFnSymbols = 0;
+int yyerror(const char *msg, ...);
+void verifySymbols();
+void setScope(char *scope);
+void install(char *id, char type);
+
+static struct symtab symbols[MAXSYMS];
+static int symbolsLength = 0;
+static int symbolsInCurrentScope = 0;
 
 /* 
   To debug, run 
@@ -44,10 +35,15 @@ int yydebug = 1;
 
 %}
 
+%union {
+        char *s;
+        char c;
+}
+
 /* Gramatica */
 
 %token  FN // fn
-        ID // [a-zA-z][a-zA-z_]*
+        <s> ID // [a-zA-z][a-zA-z_]*
         INT // [-]?[0-9]+
         FLOAT // [-]?[0-9]*\.[0-9]+
         LPAR // (
@@ -80,40 +76,35 @@ int yydebug = 1;
         IF // if
         ELSE // else
         WHILE // while
-        MAIN // main
+        <s> MAIN // main
+
+%type <c> type
 
 %%
 
-program         : functions
+program         : functions                             { verifySymbols(); }
                 ;
 
 functions       : function functions
                 | main
                 ;
 
-function        : FN ID LPAR parameters RPAR fBody
+function        : FN ID LPAR parameters RPAR fBody      { setScope($2); }
                 ;
 
-parameters      : parameter moreParameters
+parameters      : parameter COM parameters
+                | parameter
                 |
                 ;
 
-moreParameters  : COM parameter moreParameters
-                |
+parameter       : ID type                               { install($1, $2); }
                 ;
 
-parameter       : ID type
+type            : TYPE_INT                              { $$ = 'i'; }
+                | TYPE_FLOAT                            { $$ = 'f'; }
                 ;
 
-type            : TYPE_INT
-                | TYPE_FLOAT
-                ;
-
-fBody           : LBRAC bodyInside return RBRAC
-                ;
-
-bodyInside      : VAR declarations statements
-                | statements
+fBody           : LBRAC statements return RBRAC
                 ;
 
 statements      : statement statements
@@ -121,6 +112,7 @@ statements      : statement statements
                 ;
 
 statement       : assignment
+                | VAR declarations
                 | unary
                 | functionCall SCOL
                 | if
@@ -131,7 +123,7 @@ declarations    : declaration declarations
                 | declaration
                 ;
 
-declaration     : ID COL type EQ expression SCOL
+declaration     : ID COL type EQ expression SCOL        { install($1, $3); }
                 ;
 
 expression      : expression  op  expression
@@ -160,11 +152,8 @@ op              : PLUS
 functionCall    : ID LPAR arguments RPAR
                 ;
 
-arguments       : expression moreArgs
-                |
-                ;
-
-moreArgs        : COM expression moreArgs
+arguments       : expression COM arguments
+                | expression
                 |
                 ;
 
@@ -172,7 +161,7 @@ literal         : INT
                 | FLOAT
                 ;
 
-assignment      : ID EQ expression SCOL                 //{ assign($1, $3); }
+assignment      : ID EQ expression SCOL
                 ;
 
 unary           : ID inOrDecrement SCOL
@@ -189,8 +178,8 @@ return          : RETURN expression SCOL
 if              : IF expression body else
                 ;
 
-body            : LBRAC bodyInside RBRAC
-                | LBRAC bodyInside return RBRAC
+body            : LBRAC statements RBRAC
+                | LBRAC statements return RBRAC
                 ;
 
 else            : ELSE body
@@ -200,7 +189,7 @@ else            : ELSE body
 while           : WHILE expression body
                 ;
 
-main            : FN MAIN LPAR RPAR fBody
+main            : FN MAIN LPAR RPAR fBody               { setScope($2); }
                 ;
 
 %%
@@ -218,49 +207,39 @@ int yyerror(const char *msg, ...) {
         return 0;
 }
 
-int declaredAt(char *id, char *scope) {
-        if (strcmp(scope, "global")) {
-
+/* int found(char *id, char *scope) { // pending
+        for (i = 0; i < symbolsLength; i++) {
+                
         }
-}
+        return 0;
+} */
 
-void verifyIfAlreadyDeclared(char *id, char *scope) {
-        if (declaredAt(id, scope) != -1) {
-                printf("\n\nERROR: %s was already declared.\n\n", id);
+/* void verifyIfAlreadyDeclared(char *id, char *scope) {
+        if (found(id, scope)) {
+                printf("\n\nERROR: double declaration %s in %s.\n\n", id, scope);
                 exit(1);
         }
+} */
+
+void verifySymbols() { // pending
+
 }
 
-static void installInt(char *id, char *val, char *scope) {
-        verifyIfAlreadyDeclared(id, scope);
+void setScope(char *scope) {
+        int i;
+        for (i = symbolsLength-1; i >= symbolsLength - symbolsInCurrentScope; i--) {
+                strncpy(symbols[i].scope, scope, MAXTOKEN);
+        }
+        symbolsInCurrentScope = 0;
+}
 
-        struct intSymtab *p;
-
-        p = &intSymbols[nIntSymbols++];
+void install(char *id, char type) {
+        symbolsInCurrentScope++;
+        struct symtab *p;
+        p = &symbols[symbolsLength++];
         strncpy(p->id, id, MAXTOKEN);
-        p->val = atoi(val);
+        p->type = type;
 }
-
-static void installFloat(char *id, char *val, char *scope) {
-        verifyIfAlreadyDeclared(id, scope);
-
-        struct floatSymtab *p;
-
-        p = &floatSymbols[nFloatSymbols++];
-        strncpy(p->id, id, MAXTOKEN);
-        p->val = atof(val);
-}
-
-static void installFn(char *id, char returnType) {
-        verifyIfAlreadyDeclared(id, "global");
-
-        struct fnSymtab *p;
-
-        p = &fnSymbols[nFnSymbols++];
-        strncpy(p->id, id, MAXTOKEN);
-        p->returnType = returnType;
-}
-
 
 int main (int argc, char **argv) {
         FILE *fp;
@@ -280,17 +259,22 @@ int main (int argc, char **argv) {
         yyin = fp;
         yyparse();
 
-        printf("\n\nINTEGERS\n");
-        printf("\tid\t|\tval\n");
-        for (i = 0; i < nIntSymbols; i++) {
-                printf("(%d)\t%s\t|\t%d\n", i, intSymbols[i].id, intSymbols[i].val);
-        }
+        printf("\n===============================================\n");
+        for (i = 0; i < symbolsLength; i++) {
+                switch (symbols[i].type) {
+                        case 'i':
+                        printf("%s.%s [i64]\n", symbols[i].scope, symbols[i].id);
+                        break;
+                        case 'f':
+                        printf("%s.%s [f64]\n", symbols[i].scope, symbols[i].id);
+                        break;
+                        case 'm':
+                        printf("method: %s\n", symbols[i].id);
+                        break;
+                }
 
-        printf("\n\nFLOATS\n");
-        printf("\tid\t|\tval\n");
-        for (i = 0; i < nFloatSymbols; i++) {
-                printf("(%d)\t%s\t|\t%.2f\n", i, floatSymbols[i].id, floatSymbols[i].val);
         }
+        printf("===============================================\n");
 
         return 0;
 }

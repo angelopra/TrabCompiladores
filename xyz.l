@@ -6,7 +6,7 @@
 %}
 
 %%
-"main"              { return MAIN; }
+"main"              { yylval.s = strdup(yytext); return MAIN; }
 "fn"                { return FN; }
 "var"               { return VAR; }
 "return"            { return RETURN; }
@@ -15,7 +15,7 @@
 "while"             { return WHILE; }
 "i64"               { return TYPE_INT; }
 "f64"               { return TYPE_FLOAT; }
-[a-zA-Z][a-zA-Z_]*  { return ID; }
+[a-zA-Z][a-zA-Z_]*  { yylval.s = strdup(yytext); return ID; }
 [-]?[0-9]+          { return INT; }
 [-]?[0-9]*\.[0-9]+  { return FLOAT; }
 "("                 { return LPAR; }

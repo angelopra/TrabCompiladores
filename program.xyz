@@ -1,4 +1,4 @@
-fatorial(n i64) {
+fn fatorial(n i64) {
     var
         i : i64 = 1;
         r : i64 = 1;
