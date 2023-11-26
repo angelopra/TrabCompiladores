@@ -7,7 +7,6 @@
 
 #define MAXTOKEN 64
 #define MAXSYMS 1024
-#define GLOBAL "global"
 
 struct symtab {
         char scope[MAXTOKEN];
@@ -19,9 +18,9 @@ struct symtab {
 extern int yylex();
 
 int yyerror(const char *msg, ...);
-void verifySymbols();
 void setScope(char *scope);
 void install(char *id, char type);
+void verifyIfDeclared(char *id);
 
 static struct symtab symbols[MAXSYMS];
 static int symbolsLength = 0;
@@ -82,7 +81,7 @@ int yydebug = 1;
 
 %%
 
-program         : functions                             { verifySymbols(); }
+program         : functions
                 ;
 
 functions       : function functions
@@ -121,6 +120,7 @@ statement       : assignment
 
 declarations    : declaration declarations
                 | declaration
+                | statements
                 ;
 
 declaration     : ID COL type EQ expression SCOL        { install($1, $3); }
@@ -128,7 +128,7 @@ declaration     : ID COL type EQ expression SCOL        { install($1, $3); }
 
 expression      : expression  op  expression
                 | functionCall
-                | ID
+                | ID                                    { verifyIfDeclared($1); }
                 | literal
                 | LPAR expression RPAR
                 | MINUS expression
@@ -149,7 +149,7 @@ op              : PLUS
                 | OR
                 ;
 
-functionCall    : ID LPAR arguments RPAR
+functionCall    : ID LPAR arguments RPAR                { verifyIfDeclared($1); }
                 ;
 
 arguments       : expression COM arguments
@@ -161,11 +161,11 @@ literal         : INT
                 | FLOAT
                 ;
 
-assignment      : ID EQ expression SCOL
+assignment      : ID EQ expression SCOL                 { verifyIfDeclared($1); }
                 ;
 
-unary           : ID inOrDecrement SCOL
-                | inOrDecrement ID SCOL
+unary           : ID inOrDecrement SCOL                 { verifyIfDeclared($1); }
+                | inOrDecrement ID SCOL                 { verifyIfDeclared($2); }
                 ;
 
 inOrDecrement   : INCR
@@ -207,22 +207,19 @@ int yyerror(const char *msg, ...) {
         return 0;
 }
 
-/* int found(char *id, char *scope) { // pending
-        for (i = 0; i < symbolsLength; i++) {
-                
+int find(char *id) {
+        int i;
+        for (i = 0; i < symbolsLength - symbolsInCurrentScope; i++) { // verify if declared globally
+                if (strcmp(symbols[i].scope, "global") == 0 && strcmp(symbols[i].id, id) == 0) {
+                        return 1;
+                }
+        }
+        for (i = symbolsLength-1; i >= symbolsLength - symbolsInCurrentScope; i--) { // verify if declared in current scope
+                if (strcmp(symbols[i].id, id) == 0) {
+                        return 1;
+                }
         }
         return 0;
-} */
-
-/* void verifyIfAlreadyDeclared(char *id, char *scope) {
-        if (found(id, scope)) {
-                printf("\n\nERROR: double declaration %s in %s.\n\n", id, scope);
-                exit(1);
-        }
-} */
-
-void verifySymbols() { // pending
-
 }
 
 void setScope(char *scope) {
@@ -230,15 +227,28 @@ void setScope(char *scope) {
         for (i = symbolsLength-1; i >= symbolsLength - symbolsInCurrentScope; i--) {
                 strncpy(symbols[i].scope, scope, MAXTOKEN);
         }
+        install(scope, 'm');
+        strncpy(symbols[symbolsLength-1].scope, "global", MAXTOKEN);
         symbolsInCurrentScope = 0;
 }
 
 void install(char *id, char type) {
+        if (find(id)) {
+                printf("\n\nERROR: double declaration %s.\n\n", id);
+                exit(1);
+        }
         symbolsInCurrentScope++;
         struct symtab *p;
         p = &symbols[symbolsLength++];
         strncpy(p->id, id, MAXTOKEN);
         p->type = type;
+}
+
+void verifyIfDeclared(char *id) {
+        if (!find(id)) {
+                printf("\n\nERROR: id %s not declared.\n\n", id);
+                exit(1);
+        }
 }
 
 int main (int argc, char **argv) {
@@ -259,22 +269,22 @@ int main (int argc, char **argv) {
         yyin = fp;
         yyparse();
 
-        printf("\n===============================================\n");
+        printf("=====================================\n");
         for (i = 0; i < symbolsLength; i++) {
                 switch (symbols[i].type) {
                         case 'i':
-                        printf("%s.%s [i64]\n", symbols[i].scope, symbols[i].id);
+                        printf("\t%s.%s [i64]\n", symbols[i].scope, symbols[i].id);
                         break;
                         case 'f':
-                        printf("%s.%s [f64]\n", symbols[i].scope, symbols[i].id);
+                        printf("\t%s.%s [f64]\n", symbols[i].scope, symbols[i].id);
                         break;
                         case 'm':
-                        printf("method: %s\n", symbols[i].id);
+                        printf("END OF  %s  SCOPE\n", symbols[i].id);
+                        printf("=====================================\n");
                         break;
                 }
 
         }
-        printf("===============================================\n");
 
         return 0;
 }
