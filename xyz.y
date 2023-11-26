@@ -9,9 +9,9 @@
 #define MAXSYMS 1024
 
 struct symtab {
-        char scope[MAXTOKEN];
+        char scope[MAXTOKEN]; // will be the id of a method (function)
         char id[MAXTOKEN];
-        char type;
+        char type; // i, f or m (methods)
 };
 
 // Stop warning about implicit declaration of yylex().
@@ -69,8 +69,8 @@ int yydebug = 1;
         DIF // !=
         AND // &&
         OR // ||
-        INCR // ++;
-        DECR // --;
+        INCR // ++
+        DECR // --
         RETURN // return
         IF // if
         ELSE // else
@@ -120,7 +120,7 @@ statement       : assignment
 
 declarations    : declaration declarations
                 | declaration
-                | statements
+                | statements // this is done so the next it can accept an following ID without beign another declaration
                 ;
 
 declaration     : ID COL type EQ expression SCOL        { install($1, $3); }
@@ -207,7 +207,7 @@ int yyerror(const char *msg, ...) {
         return 0;
 }
 
-int find(char *id) {
+int found(char *id) { // will not find the id of the current scope, but that's ok, since the language doesn't support recursion
         int i;
         for (i = 0; i < symbolsLength - symbolsInCurrentScope; i++) { // verify if declared globally
                 if (strcmp(symbols[i].scope, "global") == 0 && strcmp(symbols[i].id, id) == 0) {
@@ -222,6 +222,7 @@ int find(char *id) {
         return 0;
 }
 
+/** Sets the scope of all the installed symbols in current scope, and install the method symbol in global scope */
 void setScope(char *scope) {
         int i;
         for (i = symbolsLength-1; i >= symbolsLength - symbolsInCurrentScope; i--) {
@@ -232,9 +233,10 @@ void setScope(char *scope) {
         symbolsInCurrentScope = 0;
 }
 
+/** Adds the id in the symbols table */
 void install(char *id, char type) {
-        if (find(id)) {
-                printf("\n\nERROR: double declaration %s.\n\n", id);
+        if (found(id)) {
+                printf("\nERROR: double declaration '%s'.\n\n", id);
                 exit(1);
         }
         symbolsInCurrentScope++;
@@ -245,8 +247,8 @@ void install(char *id, char type) {
 }
 
 void verifyIfDeclared(char *id) {
-        if (!find(id)) {
-                printf("\n\nERROR: id %s not declared.\n\n", id);
+        if (!found(id)) {
+                printf("\nERROR: id '%s' not declared.\n\n", id);
                 exit(1);
         }
 }
@@ -267,7 +269,10 @@ int main (int argc, char **argv) {
 	}
 
         yyin = fp;
-        yyparse();
+        if (yyparse()) { // returns 1 if something went wrong
+                printf("\n");
+                exit(1);
+        }
 
         printf("=====================================\n");
         for (i = 0; i < symbolsLength; i++) {
